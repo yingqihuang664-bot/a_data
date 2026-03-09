@@ -10,7 +10,7 @@ import logging
 
 from adata.__version__ import __version__
 from adata.bond import bond
-from adata.common.utils.sunrequests import SunProxy
+from adata.common.utils.sunrequests import SunProxy, sun_requests
 from adata.fund import fund
 from adata.sentiment import sentiment
 from adata.stock import stock
@@ -31,6 +31,23 @@ def proxy(is_proxy=False, ip: str = None, proxy_url: str = None):
     SunProxy.set('ip', ip)
     SunProxy.set('proxy_url', proxy_url)
     return
+
+
+def set_rate_limit(domain, limit):
+    """
+    设置指定域名的请求频率限制（次数/分钟）
+    :param domain: 域名，如：example.com
+    :param limit: 每分钟允许的请求次数
+    """
+    sun_requests.set_rate_limit(domain, limit)
+
+
+def set_default_rate_limit(limit):
+    """
+    设置默认请求频率限制（次数/分钟）
+    :param limit: 每分钟允许的请求次数
+    """
+    sun_requests.set_default_rate_limit(limit)
 
 
 # set up logging
