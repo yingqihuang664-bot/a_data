@@ -10,69 +10,8 @@
 
 import threading
 import time
-from urllib.parse import urlparse
 
 import requests
-
-
-class RateLimiter:
-    """域名频率限制器"""
-    _instance_lock = threading.Lock()
-    _instance = None
-    
-    def __new__(cls, *args, **kwargs):
-        if not cls._instance:
-            with cls._instance_lock:
-                if not cls._instance:
-                    cls._instance = object.__new__(cls)
-        return cls._instance
-    
-    def __init__(self):
-        if not hasattr(self, '_initialized'):
-            self._initialized = True
-            self._domain_limits = {}
-            self._default_limit = 30
-            self._domain_requests = {}
-            self._lock = threading.Lock()
-    
-    def set_limit(self, domain, limit):
-        """设置指定域名的请求限制次数/分钟"""
-        with self._lock:
-            self._domain_limits[domain] = limit
-    
-    def set_default_limit(self, limit):
-        """设置默认请求限制次数/分钟"""
-        with self._lock:
-            self._default_limit = limit
-    
-    def _get_domain(self, url):
-        """从URL解析域名"""
-        parsed = urlparse(url)
-        return parsed.netloc
-    
-    def acquire(self, url):
-        """获取请求令牌，阻塞直到可以请求"""
-        domain = self._get_domain(url)
-        now = time.time()
-        window_start = now - 60
-        
-        with self._lock:
-            limit = self._domain_limits.get(domain, self._default_limit)
-            if domain not in self._domain_requests:
-                self._domain_requests[domain] = []
-            
-            requests_list = self._domain_requests[domain]
-            requests_list = [t for t in requests_list if t > window_start]
-            self._domain_requests[domain] = requests_list
-            
-            if len(requests_list) >= limit:
-                wait_time = requests_list[0] + 60 - now
-                if wait_time > 0:
-                    time.sleep(wait_time)
-                return self.acquire(url)
-            
-            requests_list.append(time.time())
-            return True
 
 
 class SunProxy(object):
@@ -106,15 +45,6 @@ class SunRequests(object):
     def __init__(self, sun_proxy: SunProxy = None) -> None:
         super().__init__()
         self.sun_proxy = sun_proxy
-        self._rate_limiter = RateLimiter()
-    
-    def set_rate_limit(self, domain, limit):
-        """设置指定域名的请求频率限制（次数/分钟）"""
-        self._rate_limiter.set_limit(domain, limit)
-    
-    def set_default_rate_limit(self, limit):
-        """设置默认请求频率限制（次数/分钟）"""
-        self._rate_limiter.set_default_limit(limit)
 
     def request(self, method='get', url=None, times=3, retry_wait_time=1588, proxies=None, wait_time=None, **kwargs):
         """
@@ -128,8 +58,6 @@ class SunRequests(object):
         :param kwargs: 其它 requests 参数，用法相同
         :return: res
         """
-        # 0. 频率限制
-        self._rate_limiter.acquire(url)
         # 1. 获取设置代理
         proxies = self.__get_proxies(proxies)
         # 2. 请求数据结果
